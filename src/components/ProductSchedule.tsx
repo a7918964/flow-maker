@@ -239,90 +239,92 @@ export function ProductSchedule() {
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      {canReorder && item.status === "PENDING" && (
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <ArrowUpDown className="h-4 w-4" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>交換順序</DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-4">
-                              <div>
-                                <label className="text-sm font-medium">選擇要交換的順序編號:</label>
-                                <Select value={targetSortOrder.toString()} onValueChange={(value) => setTargetSortOrder(Number(value))}>
-                                  <SelectTrigger className="w-full mt-2">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {data.filter(d => d.id !== item.id && d.status === "PENDING").map(d => (
-                                      <SelectItem key={d.id} value={d.sortOrder.toString()}>
-                                        {d.sortOrder} - {d.fileName.slice(0, 30)}...
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                      {item.status === "PENDING" && (
+                        <>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <ArrowUpDown className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>交換順序</DialogTitle>
+                              </DialogHeader>
+                              <div className="space-y-4">
+                                <div>
+                                  <label className="text-sm font-medium">選擇要交換的順序編號:</label>
+                                  <Select value={targetSortOrder.toString()} onValueChange={(value) => setTargetSortOrder(Number(value))}>
+                                    <SelectTrigger className="w-full mt-2">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {data.filter(d => d.id !== item.id && d.status === "PENDING").map(d => (
+                                        <SelectItem key={d.id} value={d.sortOrder.toString()}>
+                                          {d.sortOrder} - {d.fileName.slice(0, 30)}...
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <Button 
+                                  onClick={() => handleSwapOrder(tab, item.id, targetSortOrder)}
+                                  className="w-full"
+                                >
+                                  確認交換
+                                </Button>
                               </div>
+                            </DialogContent>
+                          </Dialog>
+                          
+                          <Dialog>
+                            <DialogTrigger asChild>
                               <Button 
-                                onClick={() => handleSwapOrder(tab, item.id, targetSortOrder)}
-                                className="w-full"
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => setEditingItem(item)}
                               >
-                                確認交換
+                                <Edit2 className="h-4 w-4" />
                               </Button>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
-                      )}
-                      
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => setEditingItem(item)}
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>編輯排程</DialogTitle>
-                          </DialogHeader>
-                          <div className="space-y-4">
-                            <p className="text-sm text-muted-foreground">
-                              將此項目移動到其他排程，會自動加到目標排程的最後一筆
-                            </p>
-                            <div className="flex gap-2">
-                              <Button 
-                                onClick={() => handleEdit(tab, "night")}
-                                disabled={tab === "night"}
-                                className="flex-1"
-                              >
-                                移動到晚上排程
-                              </Button>
-                              <Button 
-                                onClick={() => handleEdit(tab, "day")}
-                                disabled={tab === "day"}
-                                className="flex-1"
-                              >
-                                移動到白天排程
-                              </Button>
-                            </div>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>編輯排程</DialogTitle>
+                              </DialogHeader>
+                              <div className="space-y-4">
+                                <p className="text-sm text-muted-foreground">
+                                  將此項目移動到其他排程，會自動加到目標排程的最後一筆
+                                </p>
+                                <div className="flex gap-2">
+                                  <Button 
+                                    onClick={() => handleEdit(tab, "night")}
+                                    disabled={tab === "night"}
+                                    className="flex-1"
+                                  >
+                                    移動到晚上排程
+                                  </Button>
+                                  <Button 
+                                    onClick={() => handleEdit(tab, "day")}
+                                    disabled={tab === "day"}
+                                    className="flex-1"
+                                  >
+                                    移動到白天排程
+                                  </Button>
+                                </div>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
 
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(tab, item.id)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(tab, item.id)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
