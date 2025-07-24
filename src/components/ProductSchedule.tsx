@@ -4,8 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Trash2, Search, Filter, Edit2, ArrowUpDown } from "lucide-react";
+import { Trash2, Edit2, ArrowUpDown } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 
@@ -23,14 +22,14 @@ const nightInitialData: ProductRequest[] = [
     sortOrder: 1,
     fileName: "exportSku_seller_2209783642954_shop_403163977",
     storeFrontCode: "H0888001",
-    status: "PENDING"
+    status: "PROCESSING"
   },
   {
     id: "n2", 
     sortOrder: 2,
     fileName: "exportSku_seller_2213277026438_shop_393131059",
     storeFrontCode: "H0888002",
-    status: "PENDING"
+    status: "COMPLETED"
   },
   {
     id: "n3",
@@ -44,14 +43,28 @@ const nightInitialData: ProductRequest[] = [
     sortOrder: 4,
     fileName: "exportSku_seller_2298765432198_shop_512847396",
     storeFrontCode: "H0888004",
-    status: "PENDING"
+    status: "COMPLETED"
   },
   {
     id: "n5",
     sortOrder: 5,
     fileName: "exportSku_seller_2345678901234_shop_678912345",
     storeFrontCode: "H0888005",
-    status: "COMPLETED"
+    status: "PENDING"
+  },
+  {
+    id: "n6",
+    sortOrder: 6,
+    fileName: "exportSku_seller_2356789012345_shop_789123456",
+    storeFrontCode: "H0888006",
+    status: "PENDING"
+  },
+  {
+    id: "n7",
+    sortOrder: 7,
+    fileName: "exportSku_seller_2367890123456_shop_890234567",
+    storeFrontCode: "H0888007",
+    status: "PENDING"
   }
 ];
 
@@ -60,37 +73,49 @@ const dayInitialData: ProductRequest[] = [
     id: "d1",
     sortOrder: 1,
     fileName: "exportSku_seller_3209783642954_shop_503163977",
-    storeFrontCode: "H0888006",
-    status: "PENDING"
+    storeFrontCode: "H0888008",
+    status: "PROCESSING"
   },
   {
     id: "d2", 
     sortOrder: 2,
     fileName: "exportSku_seller_3213277026438_shop_493131059",
-    storeFrontCode: "H0888007",
-    status: "PROCESSING"
+    storeFrontCode: "H0888009",
+    status: "COMPLETED"
   },
   {
     id: "d3",
     sortOrder: 3,
     fileName: "exportSku_seller_3287654321987_shop_541289763",
-    storeFrontCode: "H0888008", 
-    status: "PENDING"
+    storeFrontCode: "H0888010", 
+    status: "PROCESSING"
   },
   {
     id: "d4",
     sortOrder: 4,
     fileName: "exportSku_seller_3298765432198_shop_612847396",
-    storeFrontCode: "H0888009",
+    storeFrontCode: "H0888011",
     status: "COMPLETED"
+  },
+  {
+    id: "d5",
+    sortOrder: 5,
+    fileName: "exportSku_seller_3345678901234_shop_723456789",
+    storeFrontCode: "H0888012",
+    status: "PENDING"
+  },
+  {
+    id: "d6",
+    sortOrder: 6,
+    fileName: "exportSku_seller_3356789012345_shop_834567890",
+    storeFrontCode: "H0888013",
+    status: "PENDING"
   }
 ];
 
 export function ProductSchedule() {
   const [nightData, setNightData] = useState<ProductRequest[]>(nightInitialData);
   const [dayData, setDayData] = useState<ProductRequest[]>(dayInitialData);
-  const [statusFilter, setStatusFilter] = useState<string>("PENDING");
-  const [searchTerm, setSearchTerm] = useState("");
   const [editingItem, setEditingItem] = useState<ProductRequest | null>(null);
   const [targetSortOrder, setTargetSortOrder] = useState<number>(1);
   const { toast } = useToast();
@@ -107,13 +132,9 @@ export function ProductSchedule() {
     }
   };
 
-  const getFilteredData = (data: ProductRequest[]) => {
+  const getFilteredData = (data: ProductRequest[], status: string) => {
     return data
-      .filter(item => statusFilter === "All" || item.status === statusFilter)
-      .filter(item => 
-        item.fileName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.storeFrontCode.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+      .filter(item => item.status === status)
       .sort((a, b) => a.sortOrder - b.sortOrder);
   };
 
@@ -186,37 +207,12 @@ export function ProductSchedule() {
     );
   };
 
-  const renderTable = (tab: string) => {
+  const renderStatusTable = (tab: string, status: string) => {
     const data = getCurrentData(tab);
-    const filteredData = getFilteredData(data);
-    const canReorder = statusFilter === "PENDING" || statusFilter === "All";
+    const filteredData = getFilteredData(data, status);
 
     return (
       <div className="space-y-4">
-        <div className="flex gap-4 items-center">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="搜尋檔案名稱或店舖代碼..."
-              className="pl-10"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-48">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="PENDING">僅顯示 PENDING</SelectItem>
-              <SelectItem value="PROCESSING">僅顯示 PROCESSING</SelectItem>
-              <SelectItem value="COMPLETED">僅顯示 COMPLETED</SelectItem>
-              <SelectItem value="All">顯示全部</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
         <div className="border rounded-lg">
           <Table>
             <TableHeader>
@@ -354,11 +350,47 @@ export function ProductSchedule() {
         </TabsList>
         
         <TabsContent value="night" className="mt-6">
-          {renderTable("night")}
+          <Tabs defaultValue="PENDING" className="w-full">
+            <TabsList className="grid w-full max-w-md grid-cols-3">
+              <TabsTrigger value="PENDING">PENDING</TabsTrigger>
+              <TabsTrigger value="PROCESSING">PROCESSING</TabsTrigger>
+              <TabsTrigger value="COMPLETED">COMPLETED</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="PENDING" className="mt-6">
+              {renderStatusTable("night", "PENDING")}
+            </TabsContent>
+            
+            <TabsContent value="PROCESSING" className="mt-6">
+              {renderStatusTable("night", "PROCESSING")}
+            </TabsContent>
+            
+            <TabsContent value="COMPLETED" className="mt-6">
+              {renderStatusTable("night", "COMPLETED")}
+            </TabsContent>
+          </Tabs>
         </TabsContent>
         
         <TabsContent value="day" className="mt-6">
-          {renderTable("day")}
+          <Tabs defaultValue="PENDING" className="w-full">
+            <TabsList className="grid w-full max-w-md grid-cols-3">
+              <TabsTrigger value="PENDING">PENDING</TabsTrigger>
+              <TabsTrigger value="PROCESSING">PROCESSING</TabsTrigger>
+              <TabsTrigger value="COMPLETED">COMPLETED</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="PENDING" className="mt-6">
+              {renderStatusTable("day", "PENDING")}
+            </TabsContent>
+            
+            <TabsContent value="PROCESSING" className="mt-6">
+              {renderStatusTable("day", "PROCESSING")}
+            </TabsContent>
+            
+            <TabsContent value="COMPLETED" className="mt-6">
+              {renderStatusTable("day", "COMPLETED")}
+            </TabsContent>
+          </Tabs>
         </TabsContent>
       </Tabs>
     </div>
