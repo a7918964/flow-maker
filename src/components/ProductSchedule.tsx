@@ -1,10 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Edit2, ArrowUpDown } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Trash2, Edit2, ArrowUpDown, Search } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 
@@ -16,108 +16,45 @@ interface ProductRequest {
   status: "PENDING" | "PROCESSING" | "COMPLETED";
 }
 
-const nightInitialData: ProductRequest[] = [
-  {
-    id: "n1",
-    sortOrder: 1,
-    fileName: "exportSku_seller_2209783642954_shop_403163977",
-    storeFrontCode: "H0888001",
-    status: "PROCESSING"
-  },
-  {
-    id: "n2", 
-    sortOrder: 2,
-    fileName: "exportSku_seller_2213277026438_shop_393131059",
-    storeFrontCode: "H0888002",
-    status: "COMPLETED"
-  },
-  {
-    id: "n3",
-    sortOrder: 3,
-    fileName: "exportSku_seller_2287654321987_shop_441289763",
-    storeFrontCode: "H0888003", 
-    status: "PROCESSING"
-  },
-  {
-    id: "n4",
-    sortOrder: 4,
-    fileName: "exportSku_seller_2298765432198_shop_512847396",
-    storeFrontCode: "H0888004",
-    status: "COMPLETED"
-  },
-  {
-    id: "n5",
-    sortOrder: 5,
-    fileName: "exportSku_seller_2345678901234_shop_678912345",
-    storeFrontCode: "H0888005",
-    status: "PENDING"
-  },
-  {
-    id: "n6",
-    sortOrder: 6,
-    fileName: "exportSku_seller_2356789012345_shop_789123456",
-    storeFrontCode: "H0888006",
-    status: "PENDING"
-  },
-  {
-    id: "n7",
-    sortOrder: 7,
-    fileName: "exportSku_seller_2367890123456_shop_890234567",
-    storeFrontCode: "H0888007",
-    status: "PENDING"
+// Generate more mock data for demonstration
+const generateMockData = (prefix: string, startId: number, count: number): ProductRequest[] => {
+  const statuses: Array<"PENDING" | "PROCESSING" | "COMPLETED"> = ["PENDING", "PROCESSING", "COMPLETED"];
+  const data: ProductRequest[] = [];
+  
+  for (let i = 0; i < count; i++) {
+    const id = startId + i;
+    const status = statuses[i % 3];
+    // PENDING items get higher sort orders (later in queue)
+    let sortOrder = id;
+    if (status === "PENDING") {
+      sortOrder = id + 50; // Put PENDING items later
+    }
+    
+    data.push({
+      id: `${prefix}${id}`,
+      sortOrder,
+      fileName: `exportSku_seller_${2200000000000 + id * 12345}_shop_${400000000 + id * 7890}`,
+      storeFrontCode: `H${(888000 + id).toString().padStart(7, '0')}`,
+      status
+    });
   }
-];
+  
+  return data.sort((a, b) => a.sortOrder - b.sortOrder);
+};
 
-const dayInitialData: ProductRequest[] = [
-  {
-    id: "d1",
-    sortOrder: 1,
-    fileName: "exportSku_seller_3209783642954_shop_503163977",
-    storeFrontCode: "H0888008",
-    status: "PROCESSING"
-  },
-  {
-    id: "d2", 
-    sortOrder: 2,
-    fileName: "exportSku_seller_3213277026438_shop_493131059",
-    storeFrontCode: "H0888009",
-    status: "COMPLETED"
-  },
-  {
-    id: "d3",
-    sortOrder: 3,
-    fileName: "exportSku_seller_3287654321987_shop_541289763",
-    storeFrontCode: "H0888010", 
-    status: "PROCESSING"
-  },
-  {
-    id: "d4",
-    sortOrder: 4,
-    fileName: "exportSku_seller_3298765432198_shop_612847396",
-    storeFrontCode: "H0888011",
-    status: "COMPLETED"
-  },
-  {
-    id: "d5",
-    sortOrder: 5,
-    fileName: "exportSku_seller_3345678901234_shop_723456789",
-    storeFrontCode: "H0888012",
-    status: "PENDING"
-  },
-  {
-    id: "d6",
-    sortOrder: 6,
-    fileName: "exportSku_seller_3356789012345_shop_834567890",
-    storeFrontCode: "H0888013",
-    status: "PENDING"
-  }
-];
+const nightInitialData = generateMockData("n", 1, 45);
+const dayInitialData = generateMockData("d", 100, 45);
+
+const ITEMS_PER_PAGE = 20;
 
 export function ProductSchedule() {
   const [nightData, setNightData] = useState<ProductRequest[]>(nightInitialData);
   const [dayData, setDayData] = useState<ProductRequest[]>(dayInitialData);
   const [editingItem, setEditingItem] = useState<ProductRequest | null>(null);
   const [targetSortOrder, setTargetSortOrder] = useState<number>(1);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedStoreFront, setSelectedStoreFront] = useState<string>("all");
   const { toast } = useToast();
 
   const getCurrentData = (tab: string) => {
@@ -133,9 +70,28 @@ export function ProductSchedule() {
   };
 
   const getFilteredData = (data: ProductRequest[], status: string) => {
-    return data
-      .filter(item => item.status === status)
-      .sort((a, b) => a.sortOrder - b.sortOrder);
+    let filtered = data.filter(item => item.status === status);
+    
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(item => 
+        item.fileName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.storeFrontCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        `${item.sortOrder} - ${item.storeFrontCode}`.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    // Apply store front filter
+    if (selectedStoreFront !== "all") {
+      filtered = filtered.filter(item => item.storeFrontCode === selectedStoreFront);
+    }
+    
+    return filtered.sort((a, b) => a.sortOrder - b.sortOrder);
+  };
+
+  const getUniqueStoreFronts = (data: ProductRequest[]) => {
+    const uniqueCodes = [...new Set(data.map(item => item.storeFrontCode))].sort();
+    return uniqueCodes;
   };
 
   const handleDelete = (tab: string, id: string) => {
@@ -190,56 +146,88 @@ export function ProductSchedule() {
     });
   };
 
-  const StatusBadge = ({ status }: { status: string }) => {
-    const getStatusColor = (status: string) => {
-      switch (status) {
-        case "PENDING": return "bg-orange-500 text-white";
-        case "PROCESSING": return "bg-blue-500 text-white";
-        case "COMPLETED": return "bg-green-500 text-white";
-        default: return "bg-gray-500 text-white";
-      }
-    };
-
-    return (
-      <Badge className={getStatusColor(status)}>
-        {status}
-      </Badge>
-    );
-  };
-
   const renderStatusTable = (tab: string, status: string) => {
     const data = getCurrentData(tab);
     const filteredData = getFilteredData(data, status);
+    const allStoreFronts = getUniqueStoreFronts(data);
+    
+    // Pagination
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    const paginatedData = filteredData.slice(startIndex, endIndex);
+    const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
 
     return (
       <div className="space-y-4">
+        {/* Search and Filter Controls */}
+        <div className="flex gap-4 items-center">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder="搜尋檔案名稱或店舖代碼..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1); // Reset to first page on search
+              }}
+              className="pl-10"
+            />
+          </div>
+          <Select value={selectedStoreFront} onValueChange={(value) => {
+            setSelectedStoreFront(value);
+            setCurrentPage(1); // Reset to first page on filter
+          }}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="選擇店舖代碼" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">所有店舖</SelectItem>
+              {allStoreFronts.map(code => (
+                <SelectItem key={code} value={code}>{code}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setSearchTerm("");
+              setSelectedStoreFront("all");
+              setCurrentPage(1);
+            }}
+          >
+            清除篩選
+          </Button>
+        </div>
+
+        {/* Results count */}
+        <div className="text-sm text-muted-foreground">
+          {startIndex + 1}-{Math.min(endIndex, filteredData.length)} / 共 {filteredData.length} 筆資料
+        </div>
+
+        {/* Table */}
         <div className="border rounded-lg">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-24">排序編號</TableHead>
+                <TableHead className="w-24">序號</TableHead>
                 <TableHead>檔案名稱</TableHead>
-                <TableHead>店舖代碼</TableHead>
-                <TableHead>狀態</TableHead>
+                <TableHead>Storefront Store Code</TableHead>
                 <TableHead className="w-32">操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredData.map((item) => (
+              {paginatedData.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell className="font-medium">{item.sortOrder}</TableCell>
                   <TableCell className="font-mono text-sm">{item.fileName}</TableCell>
-                  <TableCell>{item.storeFrontCode}</TableCell>
-                  <TableCell>
-                    <StatusBadge status={item.status} />
-                  </TableCell>
+                  <TableCell>{item.sortOrder} - {item.storeFrontCode}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
                       {item.status === "PENDING" && (
                         <>
                           <Dialog>
                             <DialogTrigger asChild>
-                              <Button variant="ghost" size="sm">
+                              <Button variant="ghost" size="sm" title="交換順序">
                                 <ArrowUpDown className="h-4 w-4" />
                               </Button>
                             </DialogTrigger>
@@ -257,7 +245,7 @@ export function ProductSchedule() {
                                     <SelectContent>
                                       {data.filter(d => d.id !== item.id && d.status === "PENDING").map(d => (
                                         <SelectItem key={d.id} value={d.sortOrder.toString()}>
-                                          {d.sortOrder} - {d.fileName.slice(0, 30)}...
+                                          {d.sortOrder} - {d.storeFrontCode}
                                         </SelectItem>
                                       ))}
                                     </SelectContent>
@@ -278,6 +266,7 @@ export function ProductSchedule() {
                               <Button 
                                 variant="ghost" 
                                 size="sm"
+                                title="編輯"
                                 onClick={() => setEditingItem(item)}
                               >
                                 <Edit2 className="h-4 w-4" />
@@ -314,6 +303,7 @@ export function ProductSchedule() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            title="刪除"
                             onClick={() => handleDelete(tab, item.id)}
                             className="text-destructive hover:text-destructive"
                           >
@@ -329,9 +319,80 @@ export function ProductSchedule() {
           </Table>
         </div>
         
-        <div className="text-sm text-muted-foreground">
-          共 {filteredData.length} 筆資料
-        </div>
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">每頁顯示</span>
+              <Select value={ITEMS_PER_PAGE.toString()} disabled>
+                <SelectTrigger className="w-20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="20">20</SelectItem>
+                </SelectContent>
+              </Select>
+              <span className="text-sm text-muted-foreground">筆</span>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
+                上一頁
+              </Button>
+              
+              <div className="flex gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
+                  if (pageNum > totalPages) return null;
+                  
+                  return (
+                    <Button
+                      key={pageNum}
+                      variant={currentPage === pageNum ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCurrentPage(pageNum)}
+                      className="w-8"
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+              </div>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+              >
+                下一頁
+              </Button>
+              
+              <div className="flex items-center gap-2 ml-4">
+                <span className="text-sm text-muted-foreground">跳至</span>
+                <Input
+                  type="number"
+                  min={1}
+                  max={totalPages}
+                  value={currentPage}
+                  onChange={(e) => {
+                    const page = parseInt(e.target.value);
+                    if (page >= 1 && page <= totalPages) {
+                      setCurrentPage(page);
+                    }
+                  }}
+                  className="w-16 text-center"
+                />
+                <span className="text-sm text-muted-foreground">頁</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -339,22 +400,22 @@ export function ProductSchedule() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-2">Schedule Product</h1>
+        <h1 className="text-2xl font-bold mb-2">Schedule Product Management</h1>
         <p className="text-muted-foreground">管理產品處理請求的排程</p>
       </div>
 
       <Tabs defaultValue="night" className="w-full">
         <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="night">晚上排程(20:00~07:00)</TabsTrigger>
-          <TabsTrigger value="day">白天排程(07:00~20:00)</TabsTrigger>
+          <TabsTrigger value="night">Nighttime (20:00~07:00)</TabsTrigger>
+          <TabsTrigger value="day">Daytime (07:00~20:00)</TabsTrigger>
         </TabsList>
         
         <TabsContent value="night" className="mt-6">
           <Tabs defaultValue="PENDING" className="w-full">
             <TabsList className="grid w-full max-w-md grid-cols-3">
-              <TabsTrigger value="PENDING">PENDING</TabsTrigger>
-              <TabsTrigger value="PROCESSING">PROCESSING</TabsTrigger>
-              <TabsTrigger value="COMPLETED">COMPLETED</TabsTrigger>
+              <TabsTrigger value="PENDING">Pending</TabsTrigger>
+              <TabsTrigger value="PROCESSING">Processing</TabsTrigger>
+              <TabsTrigger value="COMPLETED">Complete</TabsTrigger>
             </TabsList>
             
             <TabsContent value="PENDING" className="mt-6">
@@ -374,9 +435,9 @@ export function ProductSchedule() {
         <TabsContent value="day" className="mt-6">
           <Tabs defaultValue="PENDING" className="w-full">
             <TabsList className="grid w-full max-w-md grid-cols-3">
-              <TabsTrigger value="PENDING">PENDING</TabsTrigger>
-              <TabsTrigger value="PROCESSING">PROCESSING</TabsTrigger>
-              <TabsTrigger value="COMPLETED">COMPLETED</TabsTrigger>
+              <TabsTrigger value="PENDING">Pending</TabsTrigger>
+              <TabsTrigger value="PROCESSING">Processing</TabsTrigger>
+              <TabsTrigger value="COMPLETED">Complete</TabsTrigger>
             </TabsList>
             
             <TabsContent value="PENDING" className="mt-6">
